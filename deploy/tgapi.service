@@ -1,0 +1,20 @@
+[Unit]
+Description=grzxk tg API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tgapi
+WorkingDirectory=/opt/tgapi
+EnvironmentFile=/opt/tgapi/.env
+ExecStart=/opt/tgapi/.venv/bin/uvicorn app.main:app --host ${HOST} --port ${PORT} --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/tgapi/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

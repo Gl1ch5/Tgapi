@@ -1,0 +1,13 @@
+services:
+  tgapi:
+    build: .
+    container_name: grzxk-tgapi
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      HOST: 0.0.0.0
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8080:8080"
