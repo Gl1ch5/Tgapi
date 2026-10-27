@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from telethon import errors
@@ -16,6 +18,8 @@ from .telegram import manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 STATIC = Path(__file__).parent / "static"
+# Public prefix when nginx serves the app under a sub-path (e.g. /tgapi); nginx strips it before proxying.
+ROOT_PATH = os.getenv("ROOT_PATH", "").rstrip("/")
 
 
 @asynccontextmanager
@@ -29,7 +33,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=APP_NAME, version=VERSION, lifespan=lifespan,
     description="Your own Telegram account as an HTTP API. Every MTProto method is available via `POST /v1/invoke`.",
-    docs_url="/swagger", redoc_url="/redoc", openapi_url="/openapi.json",
+    docs_url=None, redoc_url=None, openapi_url="/openapi.json",
+    servers=[{"url": ROOT_PATH or "/"}],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
@@ -87,6 +92,16 @@ app.include_router(auth.router)
 app.include_router(panel.router)
 app.include_router(api.router)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+
+@app.get("/swagger", include_in_schema=False)
+def swagger():
+    return get_swagger_ui_html(openapi_url=f"{ROOT_PATH}/openapi.json", title=f"{APP_NAME} — Swagger")
+
+
+@app.get("/redoc", include_in_schema=False)
+def redoc():
+    return get_redoc_html(openapi_url=f"{ROOT_PATH}/openapi.json", title=f"{APP_NAME} — ReDoc")
 
 
 @app.get("/health", include_in_schema=False)

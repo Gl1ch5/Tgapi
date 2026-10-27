@@ -240,3 +240,78 @@ table.t tr:last-child td { border-bottom: 0; }
 .btn.menu-btn { display: none; }
 @media (max-width: 760px) { .btn.menu-btn { display: inline-flex; } }
 .chips:empty { display: none; }
+
+/* ---------- mobile polish */
+.ph { flex-wrap: wrap; }
+.ep .path { word-break: break-all; }
+@media (max-width: 760px) {
+  body { font-size: 14.5px; }
+  .input, select, textarea { font-size: 16px; }            /* no iOS zoom on focus */
+  textarea { font-size: 13px; }
+  .top { padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); gap: 8px; }
+  .top .title { font-size: 15px; }
+  #acc { min-width: 0 !important; max-width: 46vw; }
+  .content { padding: 18px 14px calc(40px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 19px; }
+  .card { padding: 16px; border-radius: 16px; }
+  .card.tight { padding: 0; }
+  .grid { gap: 10px; }
+  .stat .v { font-size: 22px; }
+  .stack.lg { gap: 16px; }
+  .ph > .btn, .ph > .seg { width: 100%; }
+  .ph > .seg button { flex: 1; justify-content: center; }
+  .ph > .input { max-width: none !important; flex: 1; }
+  .side { padding-top: max(22px, env(safe-area-inset-top)); }
+  .side .foot { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .nav a { padding: 11px 10px; }
+  .btn { height: 40px; }
+  .btn.sm { height: 34px; }
+  .btn.icon { width: 38px; height: 38px; }
+  .item { flex-wrap: wrap; gap: 10px; }
+  .item .grow { min-width: 60%; }
+  .ep { padding: 12px 14px; gap: 10px; }
+  .ep-group { padding: 16px 14px 6px; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -14px; padding: 0 14px 2px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; }
+  .bars { height: 56px; gap: 2px; }
+  .codebox pre.code { font-size: 11.5px; padding: 12px 44px 12px 12px; }
+
+  /* tables → cards */
+  table.t:not(.plain) tr:first-child:has(th) { display: none; }
+  table.t:not(.plain), table.t:not(.plain) tbody, table.t:not(.plain) tr, table.t:not(.plain) td { display: block; width: 100%; }
+  table.t:not(.plain) tr { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  table.t:not(.plain) tr:last-child { border-bottom: 0; }
+  table.t:not(.plain) td { border: 0; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right !important; min-height: 26px; word-break: break-word; }
+  table.t:not(.plain) td::before { content: attr(data-l); color: var(--faint); font-size: 12px; text-align: left; flex: none; font-family: var(--font); }
+  table.t:not(.plain) td[data-l=""]::before { content: none; }
+  table.t:not(.plain) td[data-l=""] { justify-content: flex-end; }
+  table.t td .input { max-width: 60%; }
+
+  /* sheets instead of centered dialogs */
+  .overlay { place-items: end stretch; padding: 0; }
+  .modal { max-width: none; border-radius: 20px 20px 0 0; border-bottom: 0; padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .22s ease-out; max-height: 92vh; }
+  .modal::before { content: ""; display: block; width: 36px; height: 4px; border-radius: 4px; background: var(--line-2); margin: -8px auto 14px; }
+  .drawer-wrap { place-items: stretch; }
+  .drawer { width: 100vw; border-left: 0; padding: 16px 14px calc(30px + env(safe-area-inset-bottom)); }
+  .drawer h2.mono { word-break: break-all; }
+  .qr { width: min(240px, 70vw); height: min(240px, 70vw); }
+  #toasts { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); align-items: center; }
+  .auth .card { padding: 20px; }
+}
+@keyframes up { from { transform: translateY(30px); opacity: 0; } }
+@media (max-width: 760px) {
+  /* compact tables: one wrapped line per row, no labels */
+  table.t.compact, table.t.compact tbody { display: block; }
+  table.t.compact tr:first-child:has(th) { display: none; }
+  table.t.compact tr { display: flex !important; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  table.t.compact tr:last-child { border-bottom: 0; }
+  table.t.compact td { display: block !important; width: auto !important; padding: 0 !important; border: 0; text-align: left !important; min-height: 0; }
+  table.t.compact td::before { content: none !important; }
+  table.t.compact td:nth-child(2) { flex: 1; min-width: 40%; word-break: break-all; }
+  table.t.compact td:nth-child(4) { display: none !important; }
+  table.t.compact td:nth-child(5) { width: 100% !important; font-size: 12px; }
+  .modal .seg { display: flex; }
+  .modal .seg button { flex: 1; justify-content: center; }
+}
+@media (max-width: 760px) { table.t tr:has(th) { display: none !important; } }

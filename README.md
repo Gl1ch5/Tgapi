@@ -56,6 +56,7 @@ curl -X POST https://tg.example.com/v1/invoke -H "Authorization: Bearer tgk_..."
 | `DATA_DIR` | database, secret key (default `./data`) |
 | `SECRET_KEY` | optional; otherwise generated into `data/secret.key` |
 | `HOST`, `PORT` | bind address (default `127.0.0.1:8080`) |
+| `ROOT_PATH` | public sub-path when served under a prefix, e.g. `/tgapi` (nginx strips it) |
 | `COOKIE_SECURE` | `1` (default) behind HTTPS |
 | `TG_DEVICE_MODEL` | device name shown in Telegram → Devices (default `grzxk tg API`) |
 

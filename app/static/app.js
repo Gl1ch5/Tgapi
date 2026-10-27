@@ -10,7 +10,9 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const fmtTime = (ts) => ts ? new Date(ts * 1000).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" }) : "—";
-const ORIGIN = location.origin;
+// The panel may live under a prefix (e.g. https://grzxk.ru/tgapi/): every request is relative to it.
+const BASE = location.pathname.replace(/\/[^/]*$/, "");
+const ORIGIN = location.origin + BASE;
 
 const S = { auth: null, accounts: [], account: store.get("account", null), catalog: null, openapi: null, poll: null };
 
@@ -21,7 +23,7 @@ async function api(path, { method = "GET", body, form, headers = {}, raw = false
   let payload;
   if (form) payload = form;
   else if (body !== undefined) { h["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
-  const res = await fetch(path, { method, headers: h, body: payload, credentials: "same-origin" });
+  const res = await fetch(BASE + path, { method, headers: h, body: payload, credentials: "same-origin" });
   if (raw) return res;
   const text = await res.text();
   let data = null;
@@ -61,6 +63,17 @@ document.addEventListener("click", (e) => {
   const c = e.target.closest("[data-copy]");
   if (c) { copy(c.dataset.copy); }
 });
+
+/* Mobile: tables collapse into cards; each cell gets its column title as a label. */
+function labelTables(root) {
+  $$("table.t", root).forEach((t) => {
+    const heads = $$("tr:first-child th", t).map((th) => th.textContent.trim());
+    if (!heads.length) { t.classList.add("plain"); return; }
+    $$("tr", t).forEach((tr) => $$("td", tr).forEach((td, i) => { if (!td.dataset.l) td.dataset.l = heads[i] || ""; }));
+  });
+}
+new MutationObserver((ms) => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1 && (n.matches("table.t") || n.querySelector("table.t"))) labelTables(n.matches("table.t") ? n.parentNode : n); })
+  .observe(document.documentElement, { childList: true, subtree: true });
 
 /* ---------------------------------------------------------------- modal */
 function modal(html, { drawer = false, onClose } = {}) {
@@ -235,7 +248,7 @@ VIEWS.overview = async (el) => {
         <div class="row" style="margin-top:12px"><a class="btn sm" href="#/keys" style="border-color:var(--line-2)">${ico("key", "sm")} Создать ключ</a><a class="btn sm" href="#/docs" style="border-color:var(--line-2)">${ico("book", "sm")} Документация</a></div></div>
     </div>
     <div class="card tight"><div class="card-h" style="padding:18px 18px 0"><h3>Последние запросы</h3></div>
-      ${s.recent.length ? `<div class="scroll-x"><table class="t"><tr><th>Метод</th><th>Путь</th><th>Статус</th><th>мс</th><th>Время</th></tr>${s.recent.map((r) => `<tr><td><span class="verb ${r.method}">${r.method}</span></td><td class="mono">${esc(r.path)}</td><td><span class="pill ${r.status < 400 ? "ok" : "bad"}">${r.status}</span></td><td class="muted">${r.ms}</td><td class="muted">${fmtTime(r.ts)}</td></tr>`).join("")}</table></div>`
+      ${s.recent.length ? `<div class="scroll-x"><table class="t compact"><tr><th>Метод</th><th>Путь</th><th>Статус</th><th>мс</th><th>Время</th></tr>${s.recent.map((r) => `<tr><td><span class="verb ${r.method}">${r.method}</span></td><td class="mono">${esc(r.path)}</td><td><span class="pill ${r.status < 400 ? "ok" : "bad"}">${r.status}</span></td><td class="muted">${r.ms}</td><td class="muted">${fmtTime(r.ts)}</td></tr>`).join("")}</table></div>`
         : `<div class="empty">Запросов пока нет</div>`}</div></div>`;
 };
 const stat = (l, v, i) => `<div class="card stat"><div class="l">${ico(i, "sm")}${l}</div><div class="v">${v}</div></div>`;
@@ -244,7 +257,7 @@ const stat = (l, v, i) => `<div class="card stat"><div class="l">${ico(i, "sm")}
 VIEWS.accounts = async (el) => {
   await loadAccounts(); refreshAccSelect();
   el.innerHTML = `<div class="stack lg">
-    <div class="row"><div class="grow"><h1>Telegram аккаунты</h1><div class="muted small">Сессии хранятся зашифрованными. Клиент: «grzxk tg API».</div></div>
+    <div class="row ph"><div class="grow"><h1>Telegram аккаунты</h1><div class="muted small">Сессии хранятся зашифрованными. Клиент: «grzxk tg API».</div></div>
       <button class="btn primary" id="add">${ico("plus", "sm")} Подключить</button></div>
     <div class="card tight list">${S.accounts.length ? S.accounts.map((a) => `
       <div class="item"><div class="avatar">${esc((a.first_name || "?")[0])}</div>
@@ -326,7 +339,7 @@ function addAccount() {
 VIEWS.keys = async (el) => {
   const keys = await api("/panel/api/keys");
   el.innerHTML = `<div class="stack lg">
-    <div class="row"><div class="grow"><h1>API ключи</h1><div class="muted small">Ключ даёт полный доступ к аккаунту. Показывается один раз.</div></div>
+    <div class="row ph"><div class="grow"><h1>API ключи</h1><div class="muted small">Ключ даёт полный доступ к аккаунту. Показывается один раз.</div></div>
       <button class="btn primary" id="new">${ico("plus", "sm")} Новый ключ</button></div>
     <div class="card tight">${keys.length ? `<div class="scroll-x"><table class="t"><tr><th>Название</th><th>Ключ</th><th>Аккаунт</th><th>Создан</th><th>Использован</th><th></th></tr>
       ${keys.map((k) => `<tr><td>${esc(k.name)}</td><td class="mono muted">${esc(k.prefix)}</td><td>${k.account_id ? esc(k.account_username ? "@" + k.account_username : "+" + k.account_phone) : `<span class="muted">все</span>`}</td>
@@ -365,7 +378,7 @@ VIEWS.endpoints = async (el) => {
   await loadCatalog();
   const tab = store.get("ep-tab", "rest");
   el.innerHTML = `<div class="stack lg">
-    <div class="row wrap"><div class="grow"><h1>Эндпоинты</h1><div class="muted small">${restOps().length} REST методов · ${S.catalog.count} методов MTProto (layer ${S.catalog.layer})</div></div>
+    <div class="row ph"><div class="grow"><h1>Эндпоинты</h1><div class="muted small">${restOps().length} REST методов · ${S.catalog.count} методов MTProto (layer ${S.catalog.layer})</div></div>
       <div class="seg" id="tab"><button data-t="rest" class="${tab === "rest" ? "on" : ""}">REST</button><button data-t="rpc" class="${tab === "rpc" ? "on" : ""}">MTProto</button></div></div>
     <div class="search">${ico("search")}<input class="input" id="q" placeholder="Поиск: sendMessage, history, channels…" value="${esc(store.get("ep-q", ""))}"></div>
     <div id="ns" class="chips"></div>
@@ -427,7 +440,7 @@ function openRest(o) {
     <div class="row"><span class="verb ${o.method}">${o.method}</span><h2 class="grow mono" style="font-size:14px">${esc(o.path)}</h2><button class="btn icon ghost" data-close>${ico("x")}</button></div>
     <div class="muted">${esc(o.summary)}</div>${o.op.description ? `<div class="small muted" style="white-space:pre-wrap">${esc(o.op.description)}</div>` : ""}
     ${params.length ? `<div><h3 style="margin-bottom:8px">Параметры</h3><div class="card tight"><table class="t">${params.map((p) => `<tr><td class="mono">${esc(p.name)}${p.required ? " *" : ""}</td><td class="muted small">${esc(p.in)}</td><td class="mono small">${esc(schemaType(p.schema))}</td><td><input class="input" style="height:32px" data-p="${esc(p.name)}" data-in="${p.in}" placeholder="${esc(p.schema?.default ?? (p.name === "peer" ? "me" : ""))}"></td></tr>`).join("")}</table></div></div>` : ""}
-    ${bodySchema ? `<div><h3 style="margin-bottom:8px">Тело запроса ${formSchema ? "(multipart)" : "(JSON)"}</h3><div class="card tight"><table class="t">${Object.entries(bodySchema.properties || {}).map(([k, v]) => `<tr><td class="mono">${esc(k)}${(bodySchema.required || []).includes(k) ? " *" : ""}</td><td class="mono small">${esc(schemaType(v))}</td><td class="muted small">${esc(resolveRef(v)?.description || "")}</td></tr>`).join("")}</table></div></div>` : ""}
+    ${bodySchema ? `<div><h3 style="margin-bottom:8px">Тело запроса ${formSchema ? "(multipart)" : "(JSON)"}</h3><div class="card tight"><table class="t compact">${Object.entries(bodySchema.properties || {}).map(([k, v]) => `<tr><td class="mono">${esc(k)}${(bodySchema.required || []).includes(k) ? " *" : ""}</td><td class="mono small">${esc(schemaType(v))}</td><td class="muted small">${esc(resolveRef(v)?.description || "")}</td></tr>`).join("")}</table></div></div>` : ""}
     ${formSchema ? `<div class="muted small">Файлы отправляются multipart — пример в документации.</div>` : ""}
     ${jsonSchema ? `<textarea id="body" rows="8">${esc(JSON.stringify(example, null, 2))}</textarea>` : ""}
     ${formSchema ? "" : `<div class="row"><button class="btn primary" id="run">${ico("play", "sm")} Выполнить</button><span class="faint small">от имени выбранного аккаунта</span></div>`}
@@ -466,7 +479,7 @@ function openRpc(meth) {
   const m = modal(`<div class="stack lg">
     <div class="row"><span class="verb RPC">RPC</span><h2 class="grow mono" style="font-size:15px">${esc(meth.name)}</h2><button class="btn icon ghost" data-close>${ico("x")}</button></div>
     <div class="kv"><span>Возвращает</span><span class="mono">${esc(meth.result || "—")}</span><span>Документация</span><span><a href="${meth.doc}" target="_blank" rel="noopener">core.telegram.org ${ico("link", "sm")}</a></span></div>
-    <div><h3 style="margin-bottom:8px">Параметры</h3>${meth.params.length ? `<div class="card tight"><table class="t"><tr><th>Имя</th><th>Тип</th><th></th></tr>${meth.params.map((p) => `<tr><td class="mono">${esc(p.name)}</td><td class="mono small"><a href="#" data-type="${esc(p.type.replace(/^Vector<|>$/g, ""))}" style="border:0">${esc(p.type)}</a></td><td>${p.required ? `<span class="pill">обязательный</span>` : `<span class="faint small">опционально</span>`}</td></tr>`).join("")}</table></div>` : `<div class="muted small">Без параметров</div>`}</div>
+    <div><h3 style="margin-bottom:8px">Параметры</h3>${meth.params.length ? `<div class="card tight"><table class="t compact"><tr><th>Имя</th><th>Тип</th><th></th></tr>${meth.params.map((p) => `<tr><td class="mono">${esc(p.name)}</td><td class="mono small"><a href="#" data-type="${esc(p.type.replace(/^Vector<|>$/g, ""))}" style="border:0">${esc(p.type)}</a></td><td>${p.required ? `<span class="pill">обязательный</span>` : `<span class="faint small">опционально</span>`}</td></tr>`).join("")}</table></div>` : `<div class="muted small">Без параметров</div>`}</div>
     <div id="typebox"></div>
     <div><h3 style="margin-bottom:8px">params (JSON)</h3><textarea id="params" rows="8">${esc(JSON.stringify(sample, null, 2))}</textarea></div>
     <div class="row"><button class="btn primary" id="run">${ico("play", "sm")} Выполнить</button><span class="faint small">реальный вызов от имени выбранного аккаунта</span></div>
@@ -497,11 +510,11 @@ VIEWS.automation = async (el) => {
   const mt = { contains: "содержит", exact: "равно", startswith: "начинается с", regex: "regex", any: "любое" };
   const ct = { private: "личные", group: "группы", channel: "каналы", all: "все чаты" };
   el.innerHTML = `<div class="stack lg">
-    <div class="row"><div class="grow"><h1>Автоответчик</h1><div class="muted small">Правила для ${esc(accName(S.accounts.find((a) => a.id === S.account)))}. Срабатывает первое подходящее.</div></div><button class="btn primary" id="addr">${ico("plus", "sm")} Правило</button></div>
+    <div class="row ph"><div class="grow"><h1>Автоответчик</h1><div class="muted small">Правила для ${esc(accName(S.accounts.find((a) => a.id === S.account)))}. Срабатывает первое подходящее.</div></div><button class="btn primary" id="addr">${ico("plus", "sm")} Правило</button></div>
     <div class="card tight list">${rules.length ? rules.map((r) => `<div class="item"><div class="switch ${r.enabled ? "on" : ""}" data-tog="${r.id}"></div>
       <div class="grow"><div>${esc(r.name || "Правило #" + r.id)} <span class="faint small">· ${ct[r.chat_type]} · ${mt[r.match_type]} ${r.pattern ? "«" + esc(r.pattern) + "»" : ""}${r.cooldown ? " · раз в " + r.cooldown + "с" : ""}</span></div><div class="muted small ellipsis">↳ ${esc(r.reply)}</div></div>
       <button class="btn icon ghost" data-edit="${r.id}">${ico("sliders", "sm")}</button><button class="btn icon ghost danger" data-delr="${r.id}">${ico("trash", "sm")}</button></div>`).join("") : `<div class="empty">${ico("bolt")}<div>Правил нет</div></div>`}</div>
-    <div class="row" style="margin-top:10px"><div class="grow"><h1>Вебхуки</h1><div class="muted small">Все апдейты аккаунта POST-ом на ваш URL, подпись <span class="mono">X-TgApi-Signature: sha256=HMAC(secret, body)</span></div></div><button class="btn" id="addw">${ico("plus", "sm")} Вебхук</button></div>
+    <div class="row ph" style="margin-top:10px"><div class="grow"><h1>Вебхуки</h1><div class="muted small">Все апдейты аккаунта POST-ом на ваш URL, подпись <span class="mono">X-TgApi-Signature: sha256=HMAC(secret, body)</span></div></div><button class="btn" id="addw">${ico("plus", "sm")} Вебхук</button></div>
     <div class="card tight list">${hooks.length ? hooks.map((h) => `<div class="item"><div class="grow"><div class="mono small">${esc(h.url)}</div><div class="faint small">${h.events ? esc(h.events) : "все события"} · secret <span class="mono" data-copy="${esc(h.secret)}" style="cursor:pointer">${esc(h.secret.slice(0, 12))}… ${ico("copy", "sm")}</span></div></div>
       <button class="btn icon ghost danger" data-delw="${h.id}">${ico("trash", "sm")}</button></div>`).join("") : `<div class="empty">Вебхуков нет</div>`}</div></div>`;
   const ruleForm = (r = {}) => {
@@ -537,7 +550,7 @@ VIEWS.automation = async (el) => {
 function stopPoll() { if (S.poll) { S.poll.abort = true; S.poll = null; } }
 VIEWS.updates = async (el) => {
   if (needAccount(el)) return;
-  el.innerHTML = `<div class="stack lg"><div class="row"><div class="grow"><h1>Апдейты</h1><div class="muted small">Живой поток событий аккаунта — то же, что отдаёт <span class="mono">GET /v1/updates</span></div></div>
+  el.innerHTML = `<div class="stack lg"><div class="row ph"><div class="grow"><h1>Апдейты</h1><div class="muted small">Живой поток событий аккаунта — то же, что отдаёт <span class="mono">GET /v1/updates</span></div></div>
     <input class="input" id="flt" placeholder="фильтр по типу" style="max-width:220px"><span class="pill ok" id="live">${ico("dot")}live</span></div>
     <div class="card tight" id="ups"><div class="empty" id="wait">Ожидание событий…</div></div></div>`;
   const poll = { abort: false }; S.poll = poll;
@@ -598,7 +611,7 @@ VIEWS.admin = async (el) => {
       <div class="row wrap"><label class="f grow">api_id<input class="input" name="tg_api_id" value="${esc(st.tg_api_id || "")}"></label><label class="f grow">api_hash<input class="input" name="tg_api_hash" placeholder="${esc(st.tg_api_hash_hint || "")}"></label></div>
       <div class="row"><div class="switch ${st.registration_open ? "on" : ""}" id="reg"></div><span>Открытая регистрация в панели</span></div>
       <div><button class="btn primary">Сохранить</button></div></form>
-    <div class="row"><h2 class="grow">Пользователи панели</h2><button class="btn" id="addu">${ico("plus", "sm")} Пользователь</button></div>
+    <div class="row ph"><h2 class="grow">Пользователи панели</h2><button class="btn" id="addu">${ico("plus", "sm")} Пользователь</button></div>
     <div class="card tight"><div class="scroll-x"><table class="t"><tr><th>Логин</th><th>Роль</th><th>2FA</th><th>Аккаунтов</th><th>Создан</th><th></th></tr>
       ${users.map((u) => `<tr><td>${esc(u.username)}</td><td class="muted">${u.is_admin ? "админ" : "пользователь"}</td><td>${u.totp_enabled ? `<span class="pill ok">да</span>` : `<span class="pill">нет</span>`}</td><td class="muted">${u.accounts}</td><td class="muted">${fmtTime(u.created_at)}</td>
       <td style="text-align:right">${u.id === S.auth.user.id ? "" : `<button class="btn sm danger" data-delu="${u.id}">Удалить</button>`}</td></tr>`).join("")}</table></div></div></div>`;
@@ -627,7 +640,7 @@ VIEWS.docs = async (el) => {
   ];
   el.innerHTML = `<div class="grid" style="grid-template-columns:minmax(0,1fr) 200px;align-items:start"><div class="doc">
   <h1>Документация</h1>
-  <p>grzxk tg API превращает ваш Telegram-аккаунт в HTTP API. Под капотом — полноценный MTProto-клиент, поэтому доступно всё, что может официальное приложение: ${S.catalog?.count || "~820"} методов, плюс удобные REST-эндпоинты для частых задач. Интерактивная схема: <a href="/swagger" target="_blank">Swagger</a> · <a href="/redoc" target="_blank">ReDoc</a> · <a href="/openapi.json" target="_blank">openapi.json</a>.</p>
+  <p>grzxk tg API превращает ваш Telegram-аккаунт в HTTP API. Под капотом — полноценный MTProto-клиент, поэтому доступно всё, что может официальное приложение: ${S.catalog?.count || "~820"} методов, плюс удобные REST-эндпоинты для частых задач. Интерактивная схема: <a href="${B}/swagger" target="_blank">Swagger</a> · <a href="${B}/redoc" target="_blank">ReDoc</a> · <a href="${B}/openapi.json" target="_blank">openapi.json</a>.</p>
 
   <h2 id="start">Начало работы</h2>
   <ul><li>Подключите Telegram-аккаунт в разделе <a href="#/accounts">Аккаунты</a> — по номеру (код + облачный пароль 2FA) или QR-коду.</li>
